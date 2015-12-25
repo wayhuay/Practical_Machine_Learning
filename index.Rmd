@@ -1,0 +1,105 @@
+---
+title: "Practical Machine Learning Project"
+author: "Wee Way Huay"
+output: html_document
+---
+
+# Project Overview
+
+The collected data is about personal activity using devices such as Jawbone Up, Nike FuelBand, and Fitbit. These type of devices are part of the quantified self-movement where a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it. 
+
+
+The goal of this project is to use the data collected and perform prediction on the manner in which they did the exercise. This is the "classe" variable in the training set. Any variables can be used in the prediction and a report will be generated that describes how the model was built and how cross validation is executed and what would be the possible sample error and why the decision is made. 
+
+
+Use prediction model to predict 20 difference test cases. 
+
+
+
+# Data Processing
+
+#### Load Library
+```{r, message=FALSE}
+library(caret)
+library(randomForest)
+library(rpart)
+```
+
+
+#### Data Cleaning
+```{r}
+# Training Data
+TrainingData <- read.csv("pml-training.csv", na.strings=c("NA","#DIV/0!", ""))
+
+# Eliminate blank & Missing Value
+TrainingDataSet <- TrainingData[,colSums(is.na(TrainingData)) == 0]
+
+# Exclude not required variables
+TrainingDataSet   <-TrainingDataSet[,-c(1:7)]
+```
+
+```{r}
+# Testing Data
+TestingData <- read.csv("pml-testing.csv", na.strings=c("NA","#DIV/0!", ""))
+
+# Eliminate blank & Missing Value
+TestingDataSet <- TestingData[,colSums(is.na(TestingData)) == 0]
+
+# Exclude not required variables
+TestingDataSet <-TestingDataSet[,-c(1:7)]
+
+```
+
+#### Data Partition
+```{r}
+# Partition 60% of processed training dataset
+PmlDataPartition <- createDataPartition(y=TrainingDataSet$classe, p=0.6, list=FALSE)
+partDataTrain <- TrainingDataSet[PmlDataPartition, ]
+partDataTest <- TrainingDataSet[-PmlDataPartition, ]
+
+# View classe levels by frequency
+plot(partDataTrain$classe, col="blue", main="Classe Levels by Frequency", xlab="Classe Levels", ylab="Frequency")
+```
+
+# Model Comparison and Selection
+```{r}
+# Tree Model
+TreeModel <- train(classe ~., method="rpart", data=partDataTrain)
+
+confusionMatrix(partDataTrain$classe, predict(TreeModel, partDataTrain))
+```
+
+```{r cache=TRUE}
+# Random Forest Model
+RandForestModel <- randomForest(classe ~. , data=partDataTrain, method="class")
+RandForestModelVal <- predict(RandForestModel, partDataTest, type = "class")
+
+confusionMatrix(RandForestModelVal, partDataTest$classe)
+```
+
+From the observation above, it seems like random forest model produce more accurate result. So, forest model is chosen for the prediction of the classe value of the 6 participants as this model has a 99.45% accuracy rate. The expected out-of-sample is calculated as 1 - prediction accuracy made against cross validation and the result is 0.55%.
+
+# Prediction Result
+```{r}
+# Predict testing data set for the 20 test cases.
+PredictResult <- predict(RandForestModel, TestingDataSet, type="class")
+PredictResult
+
+# Generate result to file
+pml_write_files = function(x){
+  n = length(x)
+  for(i in 1:n){
+    filename = paste0("problem_id_",i,".txt")
+    write.table(x[i],file=filename,quote=FALSE,row.names=FALSE,col.names=FALSE)
+  }
+}
+
+pml_write_files(PredictResult)
+```
+
+# Reference
+The source data for this project comes from:
+http://groupware.les.inf.puc-rio.br/har
+
+
+
